@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Phone, Calendar } from "lucide-react";
+import { Menu, X, Phone, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -12,6 +13,7 @@ const navLinks = [
 ];
 
 const Navbar = () => {
+  const { user, isAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
@@ -56,6 +58,21 @@ const Navbar = () => {
               <Phone className="w-4 h-4" />
               <span>(123) 456-7890</span>
             </a>
+            {user ? (
+              <Button asChild variant="outline">
+                <Link to={isAdmin ? "/admin" : "/patient"} className="gap-2">
+                  <User className="w-4 h-4" />
+                  {isAdmin ? "Admin Panel" : "My Portal"}
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline">
+                <Link to="/auth" className="gap-2">
+                  <User className="w-4 h-4" />
+                  Login
+                </Link>
+              </Button>
+            )}
             <Button asChild>
               <Link to="/appointment" className="gap-2">
                 <Calendar className="w-4 h-4" />
