@@ -75,6 +75,29 @@ const Appointment = () => {
       });
 
       if (error) throw error;
+
+      // Send email notifications
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-appointment-notification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            patient_name: data.patient_name,
+            patient_email: data.patient_email,
+            patient_phone: data.patient_phone,
+            service: data.service,
+            preferred_date: data.preferred_date,
+            preferred_time: data.preferred_time,
+            message: data.message,
+          }),
+        });
+      } catch (emailError) {
+        console.error("Failed to send email notification:", emailError);
+        // Don't fail the appointment if email fails
+      }
       
       setIsSuccess(true);
       toast.success("Appointment request submitted successfully!");

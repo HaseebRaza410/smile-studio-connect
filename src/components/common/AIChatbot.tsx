@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2 } from "lucide-react";
+import { Bot, X, Send, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -10,13 +11,28 @@ type Message = {
   content: string;
 };
 
+type Language = {
+  code: string;
+  name: string;
+  greeting: string;
+  placeholder: string;
+  typing: string;
+  error: string;
+};
+
+const languages: Language[] = [
+  { code: "en", name: "English", greeting: "Hello! 👋 I'm the DentalCare virtual assistant. How can I help you today?", placeholder: "Type your message...", typing: "Typing...", error: "Sorry, an error occurred. Please try again later." },
+  { code: "es", name: "Español", greeting: "¡Hola! 👋 Soy el asistente virtual de DentalCare. ¿Cómo puedo ayudarte hoy?", placeholder: "Escribe tu mensaje...", typing: "Escribiendo...", error: "Lo siento, ocurrió un error. Por favor, inténtelo más tarde." },
+  { code: "pt", name: "Português", greeting: "Olá! 👋 Sou o assistente virtual da DentalCare. Como posso ajudá-lo hoje?", placeholder: "Digite sua mensagem...", typing: "Digitando...", error: "Desculpe, ocorreu um erro. Por favor, tente novamente mais tarde." },
+  { code: "fr", name: "Français", greeting: "Bonjour! 👋 Je suis l'assistant virtuel de DentalCare. Comment puis-je vous aider aujourd'hui?", placeholder: "Tapez votre message...", typing: "En train d'écrire...", error: "Désolé, une erreur s'est produite. Veuillez réessayer plus tard." },
+  { code: "ur", name: "اردو", greeting: "السلام علیکم! 👋 میں DentalCare کا ورچوئل اسسٹنٹ ہوں۔ آج میں آپ کی کیسے مدد کر سکتا ہوں?", placeholder: "اپنا پیغام لکھیں...", typing: "لکھ رہا ہے...", error: "معذرت، ایک خرابی پیش آگئی۔ براہ کرم بعد میں دوبارہ کوشش کریں۔" },
+];
+
 const AIChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedLang, setSelectedLang] = useState<Language>(languages[0]);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Olá! 👋 Sou o assistente virtual da Clínica Médica. Como posso ajudá-lo hoje?",
-    },
+    { role: "assistant", content: languages[0].greeting },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,6 +50,12 @@ const AIChatbot = () => {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  const handleLanguageChange = (langCode: string) => {
+    const newLang = languages.find(l => l.code === langCode) || languages[0];
+    setSelectedLang(newLang);
+    setMessages([{ role: "assistant", content: newLang.greeting }]);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -57,6 +79,7 @@ const AIChatbot = () => {
           },
           body: JSON.stringify({
             messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+            language: selectedLang.code,
           }),
         }
       );
@@ -109,10 +132,7 @@ const AIChatbot = () => {
       console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "Desculpe, ocorreu um erro. Por favor, tente novamente mais tarde.",
-        },
+        { role: "assistant", content: selectedLang.error },
       ]);
     } finally {
       setIsLoading(false);
@@ -150,8 +170,8 @@ const AIChatbot = () => {
                 <Bot className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-semibold">Assistente Virtual</h3>
-                <p className="text-xs opacity-80">Online agora</p>
+                <h3 className="font-semibold">DentalCare Assistant</h3>
+                <p className="text-xs opacity-80">Online now</p>
               </div>
             </div>
             <Button
@@ -162,6 +182,23 @@ const AIChatbot = () => {
             >
               <X className="h-5 w-5" />
             </Button>
+          </div>
+
+          {/* Language Selector */}
+          <div className="border-b p-2 flex items-center gap-2">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedLang.code} onValueChange={handleLanguageChange}>
+              <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code} className="text-xs">
+                    {lang.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Messages */}
@@ -191,7 +228,7 @@ const AIChatbot = () => {
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-muted px-4 py-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Digitando...
+                    {selectedLang.typing}
                   </div>
                 </div>
               )}
@@ -206,7 +243,7 @@ const AIChatbot = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Digite sua mensagem..."
+                placeholder={selectedLang.placeholder}
                 disabled={isLoading}
                 className="flex-1"
               />

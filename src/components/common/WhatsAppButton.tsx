@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
 
 const WhatsAppButton = () => {
-  const phoneNumber = "5511999999999"; // Replace with actual clinic number
+  const phoneNumber = "923241572018"; // Pakistan number format
   const message = encodeURIComponent("Olá! Gostaria de agendar uma consulta.");
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
