@@ -5,6 +5,8 @@ import Services from "@/components/sections/Services";
 import Doctors from "@/components/sections/Doctors";
 import Testimonials from "@/components/sections/Testimonials";
 import AppointmentCTA from "@/components/sections/AppointmentCTA";
+import WhatsAppButton from "@/components/common/WhatsAppButton";
+import AIChatbot from "@/components/common/AIChatbot";
 
 const Home = () => {
   return (
@@ -18,6 +20,8 @@ const Home = () => {
         <AppointmentCTA />
       </main>
       <Footer />
+      <WhatsAppButton />
+      <AIChatbot />
     </div>
   );
 };
