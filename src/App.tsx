@@ -13,6 +13,8 @@ import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/admin/Dashboard";
 import PatientPortal from "./pages/patient/Portal";
 import NotFound from "./pages/NotFound";
+import WhatsAppButton from "./components/common/WhatsAppButton";
+import AIChatbot from "./components/common/AIChatbot";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/patient" element={<PatientPortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <WhatsAppButton />
+          <AIChatbot />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

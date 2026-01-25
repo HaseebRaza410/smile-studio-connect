@@ -11,12 +11,22 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, language = "en" } = await req.json();
     const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 
     if (!DEEPSEEK_API_KEY) {
       throw new Error("DEEPSEEK_API_KEY is not configured");
     }
+
+    const languageInstructions: Record<string, string> = {
+      en: "Respond in English.",
+      es: "Respond in Spanish (Español).",
+      pt: "Respond in Portuguese (Português).",
+      fr: "Respond in French (Français).",
+      ur: "Respond in Urdu (اردو).",
+    };
+
+    const langInstruction = languageInstructions[language] || languageInstructions.en;
 
     const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
@@ -29,14 +39,15 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a helpful medical clinic assistant for "Clínica Médica". You help patients with:
+            content: `You are a helpful dental clinic assistant for "DentalCare". ${langInstruction} You help patients with:
 - Appointment scheduling information
-- Available services (General Medicine, Pediatrics, Gynecology, Cardiology, Dermatology, Orthopedics, Ophthalmology, Nutrition)
-- Clinic hours (Monday-Friday 8am-8pm, Saturday 8am-2pm)
-- General health questions
+- Available services (General Dentistry, Teeth Whitening, Cosmetic Dentistry, Dental Implants, Root Canal Therapy, Orthodontics, Pediatric Dentistry, Emergency Dentistry)
+- Clinic hours (Monday-Friday 9am-6pm, Saturday 9am-2pm)
+- General dental health questions
 - Insurance and payment information
+- Contact: Phone 03241572018, Email razahaseeb410@gmail.com
 
-Be friendly, professional, and helpful. If someone needs urgent medical attention, advise them to call emergency services or visit the emergency room. Keep responses concise and in the same language the user writes to you.`,
+Be friendly, professional, and helpful. If someone needs urgent medical attention, advise them to call emergency services or visit the emergency room. Keep responses concise.`,
           },
           ...messages,
         ],

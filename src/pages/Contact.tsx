@@ -16,12 +16,12 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Call Us",
-    details: ["(123) 456-7890", "(123) 456-7891"],
+    details: ["03241572018"],
   },
   {
     icon: Mail,
     title: "Email Us",
-    details: ["info@dentalcare.com", "appointments@dentalcare.com"],
+    details: ["razahaseeb410@gmail.com"],
   },
   {
     icon: Clock,
@@ -226,11 +226,11 @@ const Contact = () => {
                 line immediately and we'll get you the care you need.
               </p>
               <a
-                href="tel:+11234567890"
+                href="tel:+923241572018"
                 className="inline-flex items-center gap-2 text-2xl font-bold text-accent hover:underline"
               >
                 <Phone className="w-6 h-6" />
-                (123) 456-7890
+                03241572018
               </a>
             </div>
           </div>
