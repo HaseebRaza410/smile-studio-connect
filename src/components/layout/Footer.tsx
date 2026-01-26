@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Clock, Facebook, Instagram, Twitter } from "lucide-react";
+import logo from "@/assets/images/logo.png";
 
 const Footer = () => {
   return (
@@ -8,11 +9,12 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="space-y-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl">D</span>
-              </div>
-              <span className="font-bold text-xl">DentalCare</span>
+            <Link to="/" className="flex items-center">
+              <img 
+                src={logo} 
+                alt="DentalCare Logo" 
+                className="h-12 w-auto object-contain"
+              />
             </Link>
             <p className="text-background/70 text-sm leading-relaxed">
               Providing exceptional dental care with a gentle touch. Your smile is our priority.

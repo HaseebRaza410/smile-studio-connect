@@ -4,6 +4,7 @@ import { Menu, X, Phone, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import logo from "@/assets/images/logo.png";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -22,13 +23,12 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl gradient-hero flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">D</span>
-            </div>
-            <span className="font-bold text-xl text-foreground hidden sm:block">
-              DentalCare
-            </span>
+          <Link to="/" className="flex items-center">
+            <img 
+              src={logo} 
+              alt="DentalCare Logo" 
+              className="h-10 md:h-12 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -52,11 +52,11 @@ const Navbar = () => {
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-4">
             <a
-              href="tel:+1234567890"
+              href="tel:+923241572018"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               <Phone className="w-4 h-4" />
-              <span>(123) 456-7890</span>
+              <span>0324-1572018</span>
             </a>
             {user ? (
               <Button asChild variant="outline">
