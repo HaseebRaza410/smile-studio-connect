@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
+// Owner contact details
+const OWNER_EMAIL = "razahaseeb410@gmail.com";
+const OWNER_WHATSAPP = "923241572018";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -59,12 +63,17 @@ function isValidName(name: string): boolean {
 
 function isValidService(service: string): boolean {
   const validServices = [
-    "General Dentistry",
-    "Teeth Whitening", 
-    "Cosmetic Dentistry",
+    "General Checkup",
+    "Teeth Cleaning",
+    "Teeth Whitening",
+    "Dental Filling",
+    "Root Canal",
     "Dental Implants",
-    "Root Canal Therapy",
     "Orthodontics",
+    "Cosmetic Dentistry",
+    "General Dentistry",
+    "Cosmetic Dentistry",
+    "Root Canal Therapy",
     "Pediatric Dentistry",
     "Emergency Dentistry"
   ];
@@ -122,6 +131,26 @@ function validateAppointmentData(data: unknown): { valid: boolean; error?: strin
   };
 }
 
+// Generate WhatsApp notification URL for owner
+function generateOwnerWhatsAppUrl(data: AppointmentNotification): string {
+  const message = `🦷 New Appointment Request!
+
+📋 Patient Details:
+• Name: ${data.patient_name}
+• Email: ${data.patient_email}
+• Phone: ${data.patient_phone}
+
+📅 Appointment:
+• Service: ${data.service}
+• Date: ${data.preferred_date}
+• Time: ${data.preferred_time}
+${data.message ? `\n📝 Notes: ${data.message}` : ''}
+
+Please confirm the appointment.`;
+  
+  return `https://wa.me/${OWNER_WHATSAPP}?text=${encodeURIComponent(message)}`;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -158,7 +187,10 @@ const handler = async (req: Request): Promise<Response> => {
     const safeTime = escapeHtml(data.preferred_time);
     const safeMessage = data.message ? escapeHtml(data.message) : null;
 
-    // Send notification email to clinic
+    // Generate WhatsApp link for owner notification
+    const ownerWhatsAppUrl = generateOwnerWhatsAppUrl(data);
+
+    // Send notification email to clinic owner with WhatsApp link
     const clinicEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -167,11 +199,11 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "DentalCare <onboarding@resend.dev>",
-        to: ["razahaseeb410@gmail.com"],
-        subject: `New Appointment Request - ${safeName}`,
+        to: [OWNER_EMAIL],
+        subject: `🦷 New Appointment Request - ${safeName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #0284c7;">New Appointment Request</h1>
+            <h1 style="color: #0284c7;">🦷 New Appointment Request</h1>
             <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h2 style="margin-top: 0; color: #334155;">Patient Details</h2>
               <p><strong>Name:</strong> ${safeName}</p>
@@ -185,7 +217,12 @@ const handler = async (req: Request): Promise<Response> => {
               <p><strong>Preferred Time:</strong> ${safeTime}</p>
               ${safeMessage ? `<p><strong>Additional Notes:</strong> ${safeMessage}</p>` : ''}
             </div>
-            <p style="color: #64748b; font-size: 14px;">Please contact the patient to confirm the appointment.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${ownerWhatsAppUrl}" style="display: inline-block; background: #25D366; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                📱 Open in WhatsApp
+              </a>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">Please contact the patient to confirm the appointment via email or WhatsApp.</p>
           </div>
         `,
       }),
@@ -196,9 +233,11 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to send clinic email:", errorText);
     }
 
-    console.log("Clinic notification email sent");
+    console.log("Clinic notification email with WhatsApp link sent to:", OWNER_EMAIL);
 
-    // Send confirmation email to patient
+    // Send confirmation email to patient with WhatsApp contact info
+    const patientWhatsAppUrl = `https://wa.me/${OWNER_WHATSAPP}?text=${encodeURIComponent("Hello! I recently booked an appointment and have a question.")}`;
+    
     const patientEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -207,7 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "DentalCare <onboarding@resend.dev>",
-        to: [data.patient_email], // Use original email for delivery
+        to: [data.patient_email],
         subject: "Appointment Request Received - DentalCare",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -222,9 +261,14 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <p>If you have any questions, please don't hesitate to contact us:</p>
             <ul>
-              <li>Phone: 03241572018</li>
-              <li>Email: razahaseeb410@gmail.com</li>
+              <li>📞 Phone: 03241572018</li>
+              <li>📧 Email: ${OWNER_EMAIL}</li>
             </ul>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${patientWhatsAppUrl}" style="display: inline-block; background: #25D366; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                💬 Chat with us on WhatsApp
+              </a>
+            </div>
             <p>We look forward to seeing you!</p>
             <p style="color: #64748b; margin-top: 30px;">Best regards,<br>The DentalCare Team</p>
           </div>
@@ -237,10 +281,16 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to send patient email:", errorText);
     }
 
-    console.log("Patient confirmation email sent");
+    console.log("Patient confirmation email with WhatsApp link sent");
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        ownerNotified: {
+          email: OWNER_EMAIL,
+          whatsapp: OWNER_WHATSAPP
+        }
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error) {
