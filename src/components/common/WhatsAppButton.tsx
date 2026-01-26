@@ -2,7 +2,7 @@ import { MessageCircle } from "lucide-react";
 
 const WhatsAppButton = () => {
   const phoneNumber = "923241572018"; // Pakistan number format
-  const message = encodeURIComponent("Olá! Gostaria de agendar uma consulta.");
+  const message = encodeURIComponent("Hello! I would like to schedule a dental appointment.");
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
   return (
