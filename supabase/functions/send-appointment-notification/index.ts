@@ -17,22 +17,146 @@ interface AppointmentNotification {
   message?: string;
 }
 
+// HTML escape function to prevent XSS in emails
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Input validation functions
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+}
+
+function isValidPhone(phone: string): boolean {
+  // Allow digits, spaces, dashes, parentheses, and plus sign
+  const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+  return phoneRegex.test(phone) && phone.length >= 7 && phone.length <= 20;
+}
+
+function isValidDate(dateStr: string): boolean {
+  // Expect YYYY-MM-DD format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateStr)) return false;
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime());
+}
+
+function isValidTime(timeStr: string): boolean {
+  // Common time formats
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9](\s?(AM|PM|am|pm))?$|^([0-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)$/;
+  return timeRegex.test(timeStr) && timeStr.length <= 20;
+}
+
+function isValidName(name: string): boolean {
+  return name.length >= 1 && name.length <= 100;
+}
+
+function isValidService(service: string): boolean {
+  const validServices = [
+    "General Dentistry",
+    "Teeth Whitening", 
+    "Cosmetic Dentistry",
+    "Dental Implants",
+    "Root Canal Therapy",
+    "Orthodontics",
+    "Pediatric Dentistry",
+    "Emergency Dentistry"
+  ];
+  return validServices.includes(service) || (service.length >= 1 && service.length <= 100);
+}
+
+function isValidMessage(message: string | undefined): boolean {
+  if (!message) return true;
+  return message.length <= 1000;
+}
+
+function validateAppointmentData(data: unknown): { valid: boolean; error?: string; data?: AppointmentNotification } {
+  if (typeof data !== "object" || data === null) {
+    return { valid: false, error: "Invalid request format" };
+  }
+
+  const d = data as Record<string, unknown>;
+
+  // Required fields
+  if (typeof d.patient_name !== "string" || !isValidName(d.patient_name)) {
+    return { valid: false, error: "Invalid patient name" };
+  }
+  if (typeof d.patient_email !== "string" || !isValidEmail(d.patient_email)) {
+    return { valid: false, error: "Invalid email address" };
+  }
+  if (typeof d.patient_phone !== "string" || !isValidPhone(d.patient_phone)) {
+    return { valid: false, error: "Invalid phone number" };
+  }
+  if (typeof d.service !== "string" || !isValidService(d.service)) {
+    return { valid: false, error: "Invalid service" };
+  }
+  if (typeof d.preferred_date !== "string" || !isValidDate(d.preferred_date)) {
+    return { valid: false, error: "Invalid date format" };
+  }
+  if (typeof d.preferred_time !== "string" || !isValidTime(d.preferred_time)) {
+    return { valid: false, error: "Invalid time format" };
+  }
+  
+  // Optional message
+  if (d.message !== undefined && (typeof d.message !== "string" || !isValidMessage(d.message))) {
+    return { valid: false, error: "Message too long" };
+  }
+
+  return {
+    valid: true,
+    data: {
+      patient_name: d.patient_name,
+      patient_email: d.patient_email,
+      patient_phone: d.patient_phone,
+      service: d.service,
+      preferred_date: d.preferred_date,
+      preferred_time: d.preferred_time,
+      message: d.message as string | undefined
+    }
+  };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const data: AppointmentNotification = await req.json();
+    const rawData = await req.json();
     
-    // Validate required fields
-    if (!data.patient_name || !data.patient_email || !data.service || !data.preferred_date || !data.preferred_time) {
-      throw new Error("Missing required fields");
+    // Validate all inputs
+    const validation = validateAppointmentData(rawData);
+    if (!validation.valid || !validation.data) {
+      return new Response(
+        JSON.stringify({ error: validation.error || "Invalid request" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
+    const data = validation.data;
+
     if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not configured");
+      console.error("RESEND_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable" }),
+        { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
+
+    // Escape all user inputs for HTML
+    const safeName = escapeHtml(data.patient_name);
+    const safeEmail = escapeHtml(data.patient_email);
+    const safePhone = escapeHtml(data.patient_phone);
+    const safeService = escapeHtml(data.service);
+    const safeDate = escapeHtml(data.preferred_date);
+    const safeTime = escapeHtml(data.preferred_time);
+    const safeMessage = data.message ? escapeHtml(data.message) : null;
 
     // Send notification email to clinic
     const clinicEmailResponse = await fetch("https://api.resend.com/emails", {
@@ -44,22 +168,22 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "DentalCare <onboarding@resend.dev>",
         to: ["razahaseeb410@gmail.com"],
-        subject: `New Appointment Request - ${data.patient_name}`,
+        subject: `New Appointment Request - ${safeName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #0284c7;">New Appointment Request</h1>
             <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h2 style="margin-top: 0; color: #334155;">Patient Details</h2>
-              <p><strong>Name:</strong> ${data.patient_name}</p>
-              <p><strong>Email:</strong> ${data.patient_email}</p>
-              <p><strong>Phone:</strong> ${data.patient_phone}</p>
+              <p><strong>Name:</strong> ${safeName}</p>
+              <p><strong>Email:</strong> ${safeEmail}</p>
+              <p><strong>Phone:</strong> ${safePhone}</p>
             </div>
             <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h2 style="margin-top: 0; color: #334155;">Appointment Details</h2>
-              <p><strong>Service:</strong> ${data.service}</p>
-              <p><strong>Preferred Date:</strong> ${data.preferred_date}</p>
-              <p><strong>Preferred Time:</strong> ${data.preferred_time}</p>
-              ${data.message ? `<p><strong>Additional Notes:</strong> ${data.message}</p>` : ''}
+              <p><strong>Service:</strong> ${safeService}</p>
+              <p><strong>Preferred Date:</strong> ${safeDate}</p>
+              <p><strong>Preferred Time:</strong> ${safeTime}</p>
+              ${safeMessage ? `<p><strong>Additional Notes:</strong> ${safeMessage}</p>` : ''}
             </div>
             <p style="color: #64748b; font-size: 14px;">Please contact the patient to confirm the appointment.</p>
           </div>
@@ -83,18 +207,18 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "DentalCare <onboarding@resend.dev>",
-        to: [data.patient_email],
+        to: [data.patient_email], // Use original email for delivery
         subject: "Appointment Request Received - DentalCare",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #0284c7;">Thank You for Your Appointment Request!</h1>
-            <p>Dear ${data.patient_name},</p>
+            <p>Dear ${safeName},</p>
             <p>We have received your appointment request and will contact you shortly to confirm your booking.</p>
             <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h2 style="margin-top: 0; color: #334155;">Your Request Details</h2>
-              <p><strong>Service:</strong> ${data.service}</p>
-              <p><strong>Preferred Date:</strong> ${data.preferred_date}</p>
-              <p><strong>Preferred Time:</strong> ${data.preferred_time}</p>
+              <p><strong>Service:</strong> ${safeService}</p>
+              <p><strong>Preferred Date:</strong> ${safeDate}</p>
+              <p><strong>Preferred Time:</strong> ${safeTime}</p>
             </div>
             <p>If you have any questions, please don't hesitate to contact us:</p>
             <ul>
@@ -116,13 +240,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Patient confirmation email sent");
 
     return new Response(
-      JSON.stringify({ success: true, clinicEmail: clinicEmailResponse, patientEmail: patientEmailResponse }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in send-appointment-notification:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "An unexpected error occurred" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
