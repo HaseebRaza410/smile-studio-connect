@@ -11,6 +11,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_REQUESTS_PER_IP = 5; // 5 appointments per IP per hour
+const MAX_REQUESTS_PER_EMAIL = 3; // 3 appointments per email per hour
+
+// In-memory rate limit stores (reset on cold start)
+const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
+const emailRequestCounts = new Map<string, { count: number; resetTime: number }>();
+
+function getClientIp(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+         req.headers.get("x-real-ip") || 
+         "unknown";
+}
+
+function isRateLimited(key: string, store: Map<string, { count: number; resetTime: number }>, maxRequests: number): boolean {
+  const now = Date.now();
+  const record = store.get(key);
+  
+  if (!record || now > record.resetTime) {
+    store.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  
+  if (record.count >= maxRequests) {
+    return true;
+  }
+  
+  record.count++;
+  return false;
+}
+
 interface AppointmentNotification {
   patient_name: string;
   patient_email: string;
@@ -157,6 +189,16 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Rate limit by IP first
+    const clientIp = getClientIp(req);
+    if (isRateLimited(clientIp, ipRequestCounts, MAX_REQUESTS_PER_IP)) {
+      console.warn(`Rate limit exceeded for IP: ${clientIp}`);
+      return new Response(
+        JSON.stringify({ error: "Too many appointment requests. Please try again later." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const rawData = await req.json();
     
     // Validate all inputs
@@ -169,6 +211,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const data = validation.data;
+
+    // Rate limit by email
+    if (isRateLimited(data.patient_email.toLowerCase(), emailRequestCounts, MAX_REQUESTS_PER_EMAIL)) {
+      console.warn(`Rate limit exceeded for email: ${data.patient_email}`);
+      return new Response(
+        JSON.stringify({ error: "Too many appointment requests from this email. Please try again later." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY is not configured");
