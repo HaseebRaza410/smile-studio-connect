@@ -10,6 +10,8 @@ import Services from "./pages/Services";
 import Contact from "./pages/Contact";
 import Appointment from "./pages/Appointment";
 import Auth from "./pages/Auth";
+import Blog from "./pages/Blog";
+import FAQ from "./pages/FAQ";
 import AdminDashboard from "./pages/admin/Dashboard";
 import PatientPortal from "./pages/patient/Portal";
 import NotFound from "./pages/NotFound";
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/appointment" element={<Appointment />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/faq" element={<FAQ />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/patient" element={<PatientPortal />} />
             <Route path="*" element={<NotFound />} />

@@ -6,27 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const contactInfo = [
   {
     icon: MapPin,
     title: "Visit Us",
-    details: ["123 Dental Street", "Medical District, NY 10001"],
+    details: ["123 Dental Street, Clifton", "Karachi, Pakistan"],
+    link: null,
   },
   {
     icon: Phone,
     title: "Call Us",
-    details: ["03241572018"],
+    details: ["+92-324-1572018"],
+    link: "tel:+923241572018",
   },
   {
     icon: Mail,
     title: "Email Us",
     details: ["razahaseeb410@gmail.com"],
+    link: "mailto:razahaseeb410@gmail.com",
   },
   {
     icon: Clock,
     title: "Working Hours",
     details: ["Mon - Fri: 9:00 AM - 6:00 PM", "Sat: 9:00 AM - 2:00 PM"],
+    link: null,
   },
 ];
 
@@ -45,12 +50,28 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsSuccess(true);
-    toast.success("Message sent successfully!");
-    setIsSubmitting(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-contact-message', {
+        body: formData,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setIsSuccess(true);
+      toast.success("Message sent successfully!");
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      toast.error(error.message || "Failed to send message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -64,14 +85,14 @@ const Contact = () => {
         <main className="pt-24 pb-20">
           <div className="container mx-auto px-4">
             <div className="max-w-lg mx-auto text-center py-16">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-6">
                 <CheckCircle className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-3xl font-bold mb-4">Message Sent!</h1>
               <p className="text-muted-foreground mb-8">
                 Thank you for reaching out. We'll get back to you within 24 hours.
               </p>
-              <Button onClick={() => setIsSuccess(false)}>Send Another Message</Button>
+              <Button onClick={() => setIsSuccess(false)} className="rounded-lg">Send Another Message</Button>
             </div>
           </div>
         </main>
@@ -88,7 +109,7 @@ const Contact = () => {
         <section className="py-16 lg:py-24 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto">
-              <span className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+              <span className="inline-block px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium mb-4">
                 Get in Touch
               </span>
               <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -110,16 +131,26 @@ const Contact = () => {
               {contactInfo.map((info) => (
                 <div
                   key={info.title}
-                  className="p-6 bg-card rounded-2xl border border-border hover:shadow-lg transition-shadow text-center"
+                  className="p-6 bg-card rounded-lg border border-border hover:shadow-lg transition-shadow text-center"
                 >
-                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
                     <info.icon className="w-7 h-7 text-primary" />
                   </div>
                   <h3 className="font-semibold text-lg mb-3">{info.title}</h3>
                   {info.details.map((detail) => (
-                    <p key={detail} className="text-muted-foreground text-sm">
-                      {detail}
-                    </p>
+                    info.link ? (
+                      <a 
+                        key={detail} 
+                        href={info.link}
+                        className="block text-muted-foreground text-sm hover:text-primary transition-colors"
+                      >
+                        {detail}
+                      </a>
+                    ) : (
+                      <p key={detail} className="text-muted-foreground text-sm">
+                        {detail}
+                      </p>
+                    )
                   ))}
                 </div>
               ))}
@@ -132,7 +163,7 @@ const Contact = () => {
           <div className="container mx-auto px-4">
             <div className="grid lg:grid-cols-2 gap-12">
               {/* Contact Form */}
-              <div className="bg-card p-8 rounded-2xl border border-border">
+              <div className="bg-card p-8 rounded-lg border border-border">
                 <h2 className="text-2xl font-bold mb-6">Send Us a Message</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-6">
@@ -140,10 +171,11 @@ const Contact = () => {
                       <label className="block text-sm font-medium mb-2">Full Name</label>
                       <Input
                         name="name"
-                        placeholder="John Doe"
+                        placeholder="Ahmed Khan"
                         value={formData.name}
                         onChange={handleChange}
                         required
+                        className="rounded-lg"
                       />
                     </div>
                     <div>
@@ -151,10 +183,11 @@ const Contact = () => {
                       <Input
                         name="email"
                         type="email"
-                        placeholder="john@example.com"
+                        placeholder="ahmed@example.com"
                         value={formData.email}
                         onChange={handleChange}
                         required
+                        className="rounded-lg"
                       />
                     </div>
                   </div>
@@ -163,9 +196,10 @@ const Contact = () => {
                       <label className="block text-sm font-medium mb-2">Phone</label>
                       <Input
                         name="phone"
-                        placeholder="(123) 456-7890"
+                        placeholder="+92-300-1234567"
                         value={formData.phone}
                         onChange={handleChange}
+                        className="rounded-lg"
                       />
                     </div>
                     <div>
@@ -176,6 +210,7 @@ const Contact = () => {
                         value={formData.subject}
                         onChange={handleChange}
                         required
+                        className="rounded-lg"
                       />
                     </div>
                   </div>
@@ -188,9 +223,10 @@ const Contact = () => {
                       onChange={handleChange}
                       rows={5}
                       required
+                      className="rounded-lg"
                     />
                   </div>
-                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                  <Button type="submit" size="lg" className="w-full rounded-lg" disabled={isSubmitting}>
                     <Send className="w-4 h-4 mr-2" />
                     {isSubmitting ? "Sending..." : "Send Message"}
                   </Button>
@@ -198,16 +234,16 @@ const Contact = () => {
               </div>
 
               {/* Map */}
-              <div className="rounded-2xl overflow-hidden border border-border h-[500px] lg:h-auto">
+              <div className="rounded-lg overflow-hidden border border-border h-[500px] lg:h-auto">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215573291865!2d-73.98784368459377!3d40.75797977932681!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c259a9aeb1c6b5%3A0x35b1cfbc89a6097f!2sEmpire%20State%20Building!5e0!3m2!1sen!2sus!4v1623175834637!5m2!1sen!2sus"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3620.2894831809045!2d67.0251684!3d24.8607344!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3eb33e8a4c93c2ab%3A0x4e9c9a8d9e5e5e5e!2sClifton%2C%20Karachi%2C%20Pakistan!5e0!3m2!1sen!2s!4v1623175834637!5m2!1sen!2s"
                   width="100%"
                   height="100%"
                   style={{ border: 0, minHeight: "400px" }}
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
-                  title="Clinic Location"
+                  title="Clinic Location - Karachi, Pakistan"
                 />
               </div>
             </div>
@@ -217,7 +253,7 @@ const Contact = () => {
         {/* Emergency Contact */}
         <section className="py-16">
           <div className="container mx-auto px-4">
-            <div className="bg-accent/10 p-8 md:p-12 rounded-2xl text-center">
+            <div className="bg-accent/10 p-8 md:p-12 rounded-lg text-center">
               <h2 className="text-2xl md:text-3xl font-bold mb-4">
                 Dental Emergency?
               </h2>
@@ -230,7 +266,7 @@ const Contact = () => {
                 className="inline-flex items-center gap-2 text-2xl font-bold text-accent hover:underline"
               >
                 <Phone className="w-6 h-6" />
-                03241572018
+                +92-324-1572018
               </a>
             </div>
           </div>
