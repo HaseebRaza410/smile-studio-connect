@@ -62,9 +62,8 @@ const About = () => {
                   <span className="text-primary">Dental Health</span>
                 </h1>
                 <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                  At DentalCare, we believe everyone deserves a healthy, beautiful smile. 
-                  Since 2008, we've been committed to providing exceptional dental care 
-                  in a comfortable, welcoming environment. Our team of experienced professionals 
+                  DentalCare Pakistan has served Karachi for 10+ years with modern equipment and experienced dentists. 
+                  We believe everyone deserves a healthy, beautiful smile. Our team of experienced professionals 
                   combines expertise with compassion to deliver the best possible outcomes for our patients.
                 </p>
                 <div className="flex flex-wrap gap-4">

@@ -4,12 +4,13 @@ import { Menu, X, Phone, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import logo from "@/assets/images/logo.png";
 
 const navLinks = [
   { name: "Home", path: "/" },
   { name: "About", path: "/about" },
   { name: "Services", path: "/services" },
+  { name: "Blog", path: "/blog" },
+  { name: "FAQ", path: "/faq" },
   { name: "Contact", path: "/contact" },
 ];
 
@@ -23,12 +24,9 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <img 
-              src={logo} 
-              alt="DentalCare Logo" 
-              className="h-10 md:h-12 w-auto object-contain"
-            />
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-2xl md:text-3xl">🦷</span>
+            <span className="text-lg md:text-xl font-bold text-foreground">DentalCare <span className="text-primary">PK</span></span>
           </Link>
 
           {/* Desktop Navigation */}
