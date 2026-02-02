@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const HCAPTCHA_SECRET_KEY = Deno.env.get("HCAPTCHA_SECRET_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const OWNER_EMAIL = "razahaseeb410@gmail.com";
 
 const corsHeaders = {
@@ -36,7 +40,6 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// HTML escape function
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -46,7 +49,6 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
-// Validation functions
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email) && email.length <= 255;
@@ -57,7 +59,7 @@ function isValidName(name: string): boolean {
 }
 
 function isValidPhone(phone: string): boolean {
-  if (!phone) return true; // Optional field
+  if (!phone) return true;
   const phoneRegex = /^[\d\s\-\(\)\+]+$/;
   return phoneRegex.test(phone) && phone.length >= 7 && phone.length <= 20;
 }
@@ -76,6 +78,7 @@ interface ContactMessage {
   phone?: string;
   subject: string;
   message: string;
+  captchaToken?: string;
 }
 
 function validateContactData(data: unknown): { valid: boolean; error?: string; data?: ContactMessage } {
@@ -109,8 +112,30 @@ function validateContactData(data: unknown): { valid: boolean; error?: string; d
       phone: d.phone as string | undefined,
       subject: d.subject,
       message: d.message,
+      captchaToken: d.captchaToken as string | undefined,
     }
   };
+}
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  if (!HCAPTCHA_SECRET_KEY) {
+    console.warn("HCAPTCHA_SECRET_KEY not configured, skipping captcha verification");
+    return true;
+  }
+
+  try {
+    const response = await fetch("https://hcaptcha.com/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `response=${token}&secret=${HCAPTCHA_SECRET_KEY}`,
+    });
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error("Captcha verification failed:", error);
+    return false;
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -119,7 +144,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Rate limiting
     const clientIp = getClientIp(req);
     if (isRateLimited(clientIp)) {
       console.warn(`Rate limit exceeded for IP: ${clientIp}`);
@@ -141,6 +165,33 @@ const handler = async (req: Request): Promise<Response> => {
 
     const data = validation.data;
 
+    // Verify CAPTCHA
+    if (data.captchaToken) {
+      const captchaValid = await verifyCaptcha(data.captchaToken);
+      if (!captchaValid) {
+        return new Response(
+          JSON.stringify({ error: "CAPTCHA verification failed. Please try again." }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+
+    // Store message in database
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        await supabase.from("contact_messages").insert({
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          subject: data.subject,
+          message: data.message,
+        });
+      } catch (dbError) {
+        console.error("Failed to store message in database:", dbError);
+      }
+    }
+
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY is not configured");
       return new Response(
@@ -149,14 +200,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Escape all inputs for HTML
     const safeName = escapeHtml(data.name);
     const safeEmail = escapeHtml(data.email);
     const safePhone = data.phone ? escapeHtml(data.phone) : "Not provided";
     const safeSubject = escapeHtml(data.subject);
     const safeMessage = escapeHtml(data.message);
 
-    // Send email to clinic owner
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

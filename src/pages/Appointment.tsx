@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import Captcha, { CaptchaRef } from "@/components/common/Captcha";
 
 const appointmentSchema = z.object({
   patient_name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -45,6 +46,8 @@ const timeSlots = [
 const Appointment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaRef>(null);
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -61,6 +64,11 @@ const Appointment = () => {
   });
 
   const onSubmit = async (data: AppointmentFormData) => {
+    if (!captchaToken) {
+      toast.error("Please complete the CAPTCHA verification");
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from("appointments").insert({
@@ -76,7 +84,7 @@ const Appointment = () => {
 
       if (error) throw error;
 
-      // Send email notifications
+      // Send email notifications with captcha token
       try {
         await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-appointment-notification`, {
           method: "POST",
@@ -92,17 +100,20 @@ const Appointment = () => {
             preferred_date: data.preferred_date,
             preferred_time: data.preferred_time,
             message: data.message,
+            captchaToken,
           }),
         });
       } catch (emailError) {
         console.error("Failed to send email notification:", emailError);
-        // Don't fail the appointment if email fails
       }
       
       setIsSuccess(true);
       toast.success("Appointment request submitted successfully!");
+      setCaptchaToken(null);
     } catch (error) {
       toast.error("Failed to submit appointment. Please try again.");
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -241,7 +252,17 @@ const Appointment = () => {
                   </FormItem>
                 )} />
 
-                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                <Captcha
+                  ref={captchaRef}
+                  onVerify={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => {
+                    setCaptchaToken(null);
+                    toast.error("CAPTCHA error. Please try again.");
+                  }}
+                />
+
+                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || !captchaToken}>
                   {isSubmitting ? "Submitting..." : "Request Appointment"}
                 </Button>
               </form>
