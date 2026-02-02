@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import Captcha, { CaptchaRef } from "@/components/common/Captcha";
 
 const contactInfo = [
   {
@@ -38,6 +39,8 @@ const contactInfo = [
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaRef>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -48,11 +51,17 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!captchaToken) {
+      toast.error("Please complete the CAPTCHA verification");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
       const { data, error } = await supabase.functions.invoke('send-contact-message', {
-        body: formData,
+        body: { ...formData, captchaToken },
       });
 
       if (error) {
@@ -66,9 +75,12 @@ const Contact = () => {
       setIsSuccess(true);
       toast.success("Message sent successfully!");
       setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+      setCaptchaToken(null);
     } catch (error: any) {
       console.error("Error sending message:", error);
       toast.error(error.message || "Failed to send message. Please try again.");
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -226,7 +238,23 @@ const Contact = () => {
                       className="rounded-lg"
                     />
                   </div>
-                  <Button type="submit" size="lg" className="w-full rounded-lg" disabled={isSubmitting}>
+                  
+                  <Captcha
+                    ref={captchaRef}
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                    onError={() => {
+                      setCaptchaToken(null);
+                      toast.error("CAPTCHA error. Please try again.");
+                    }}
+                  />
+                  
+                  <Button 
+                    type="submit" 
+                    size="lg" 
+                    className="w-full rounded-lg" 
+                    disabled={isSubmitting || !captchaToken}
+                  >
                     <Send className="w-4 h-4 mr-2" />
                     {isSubmitting ? "Sending..." : "Send Message"}
                   </Button>
